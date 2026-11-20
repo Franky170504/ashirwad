@@ -36,10 +36,10 @@ export default function RegisterPage() {
     <AuthShell title="New User">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-4">
-          <TextField label="First Name" name="first_name" autoComplete="given-name" required error={errors.first_name} />
-          <TextField label="Last Name" name="last_name" autoComplete="family-name" required error={errors.last_name} />
+          <TextField label="First Name" name="firstname" autoComplete="given-name" required error={errors.firstname} />
+          <TextField label="Last Name" name="lastname" autoComplete="family-name" required error={errors.lastname} />
           <TextField label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />
-          <TextField label="Mobile" name="mobile" type="tel" inputMode="tel" autoComplete="tel" required error={errors.mobile} />
+          <TextField label="Mobile" name="mobile_no" type="tel" inputMode="tel" autoComplete="tel" required error={errors.mobile_no} />
         </div>
         <PasswordField label="Password" name="password" autoComplete="new-password" required minLength={8} error={errors.password} />
         <PasswordField label="Confirm Password" name="confirm_password" autoComplete="new-password" required error={errors.confirm_password} />

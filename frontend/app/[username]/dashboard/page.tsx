@@ -8,9 +8,8 @@ type Me = {
   name: string;
   username: string;
   email: string;
-  mobile: string;
+  mobile_no: string;
   date_joined: string;
-  last_login: string | null;
   role: string;
 };
 
@@ -51,10 +50,9 @@ export default function DashboardPage() {
   const rows: [string, string][] = [
     ["Username", me.username],
     ["Email", me.email || "—"],
-    ["Mobile", me.mobile || "—"],
+    ["Mobile", me.mobile_no || "—"],
     ["Role", me.role],
-    ["Member since", fmt(me.date_joined)],
-    ["Last login", fmt(me.last_login)],
+    ["Date joined", fmt(me.date_joined)],
   ];
 
   return (

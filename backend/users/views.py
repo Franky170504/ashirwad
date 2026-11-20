@@ -1,30 +1,41 @@
+
 import json
+import logging
 import re
 import secrets
 from datetime import timedelta
 
 from django.conf import settings
+
 from django.contrib.auth import authenticate, get_user_model, logout
-from django.contrib.auth import login as auth_login  # alias: our view below is also called "login"
+from django.contrib.auth import login as auth_login 
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.hashers import make_password, check_password
+
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+
 from django.db import IntegrityError, transaction
+
 from django.http import JsonResponse
+
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
+
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import PasswordResetCode, Profile
+from .models import PasswordResetOTP, CustomUser
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 CODE_TTL = timedelta(minutes=10)
+RESEND_COOLDOWN = 30  # seconds before another code can be requested
+RESEND_COOLDOWN = 30  # seconds between code requests (the frontend shows the same 30s countdown)
 MAX_ATTEMPTS = 5
 REMEMBER_ME_SECONDS = 60 * 60 * 24 * 30  # 30 days
 MOBILE_RE = re.compile(r"^\+?\d{7,15}$")
-
 
 # ---------- helpers ----------
 def _body(request):
@@ -34,23 +45,18 @@ def _body(request):
     except json.JSONDecodeError:
         return {}
 
-
 def _s(data, key):
     return str(data.get(key) or "").strip()
 
-
 def _hash(value: str) -> str:
     return salted_hmac("login_auth.reset", value).hexdigest()
-
 
 def _errors(errors: dict, status=400):
     """Field errors in DRF style: {"field": ["message"]} — the frontend shows them under the field."""
     return JsonResponse({k: [v] for k, v in errors.items()}, status=status)
 
-
 def _detail(message: str, status=400):
     return JsonResponse({"detail": message}, status=status)
-
 
 def _generate_username(first: str, last: str) -> str:
     """First name + first letter of last name, e.g. Manish Suryavanshi -> ManishS.
@@ -71,10 +77,8 @@ def _generate_username(first: str, last: str) -> str:
         n += 1
     return f"{base}{n}"
 
-
 def _find_user_by_email(email: str):
     return User.objects.filter(email__iexact=email, is_active=True).first()
-
 
 # ---------- endpoints ----------
 @require_GET
@@ -83,30 +87,34 @@ def csrf(request):
     """The frontend calls this once so Django sets the csrftoken cookie."""
     return JsonResponse({"ok": True})
 
-
 @require_POST
 def register(request):
     d = _body(request)
-    first, last = _s(d, "first_name"), _s(d, "last_name")
-    email, mobile = _s(d, "email").lower(), _s(d, "mobile")
+    first, last = _s(d, "firstname"), _s(d, "lastname")
+    email, mobile_no = _s(d, "email").lower(), _s(d, "mobile_no")
     password, confirm = d.get("password") or "", d.get("confirm_password") or ""
 
     errs = {}
     if not first:
-        errs["first_name"] = "First name is required."
+        errs["firstname"] = "First name is required."
     if not last:
-        errs["last_name"] = "Last name is required."
+        errs["lastname"] = "Last name is required."
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         errs["email"] = "Enter a valid email address."
     elif User.objects.filter(email__iexact=email).exists():
         errs["email"] = "An account with this email already exists."
-    if not MOBILE_RE.match(mobile.replace(" ", "").replace("-", "")):
-        errs["mobile"] = "Enter a valid mobile number."
+    if not mobile_no:
+        return JsonResponse(
+            {"error": "Mobile number is required"},
+            status=400
+        )
+    if not MOBILE_RE.match(mobile_no.replace(" ", "").replace("-", "")):
+        errs["mobile_no"] = "Enter a valid mobile number."
     if password != confirm:
         errs["confirm_password"] = "Passwords do not match."
     if "password" not in errs and password:
         try:
-            validate_password(password, user=User(username=first + last[:1], email=email, first_name=first, last_name=last))
+            validate_password(password, user=User(username=first + last[:1], email=email, firstname=first, lastname=last))
         except ValidationError as e:
             errs["password"] = " ".join(e.messages)
     elif not password:
@@ -119,16 +127,13 @@ def register(request):
         username = _generate_username(first, last)
         try:
             with transaction.atomic():
-                user = User.objects.create_user(username=username, email=email, password=password,
-                                                first_name=first, last_name=last)
-                Profile.objects.create(user=user, mobile=mobile)
+                user = User.objects.create_user(firstname=first, lastname=last, email=email,mobile_no=mobile_no,  password=password)
             break
         except IntegrityError:
             continue
     else:
         return _detail("Could not create the account. Please try again.", 500)
     return JsonResponse({"detail": "Account created.", "username": user.get_username()}, status=201)
-
 
 @require_POST
 def login(request):
@@ -149,95 +154,122 @@ def login(request):
     request.session.set_expiry(REMEMBER_ME_SECONDS if d.get("remember_me") else 0)
     return JsonResponse({"detail": "Logged in.", "username": user.get_username()})
 
-
 @require_POST
 def forgot_password(request):
+    """Also used by the "Resend code" button on the Verify Code page."""
     email = _s(_body(request), "email").lower()
     if not email:
         return _errors({"email": "Email is required."})
-
+ 
     user = _find_user_by_email(email)
-    if user:
-        code = f"{secrets.randbelow(10**6):06d}"
-        PasswordResetCode.objects.update_or_create(
-            user=user,
-            defaults={"code_hash": _hash(code), "token_hash": "", "attempts": 0,
-                      "created_at": timezone.now(), "expires_at": timezone.now() + CODE_TTL},
-        )
+    if not user:
+        return _errors({"email": "No account found with this email."}, status=404)
+ 
+    # Server-side cooldown so the code can't be spammed (matches the 30 s timer on the page)
+    existing = PasswordResetOTP.objects.filter(user=user).first()
+    if existing:
+        elapsed = (timezone.now() - existing.created_at).total_seconds()
+        if elapsed < RESEND_COOLDOWN:
+            wait = int(RESEND_COOLDOWN - elapsed) + 1
+            return _detail(f"Please wait {wait} seconds before requesting a new code.", 429)
+ 
+    code = f"{secrets.randbelow(10**6):06d}"
+    PasswordResetOTP.objects.update_or_create(
+        user=user,
+        defaults={"otp_hash": _hash(code), "reset_token_hash": "", "attempts": 0,
+                  "created_at": timezone.now(), "expires_at": timezone.now() + CODE_TTL},
+    )
+    try:
         send_mail(
             subject="Your Ashirwad Industries verification code",
-            message=f"Your verification code is {code}. It expires in 10 minutes.\n"
-                    f"If you didn't request this, you can ignore this email.",
+            message=(f"Hello {user.firstname or user.get_username()},\n\n"
+                     f"Your verification code is {code}.\n"
+                     f"It expires in 10 minutes.\n\n"
+                     f"If you didn't request this, you can ignore this email."),
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[user.email],
-            fail_silently=False,
         )
-    # Same response whether or not the account exists (prevents email enumeration)
-    return JsonResponse({"detail": "If the email is registered, a code has been sent."})
-
-
+    except OSError:  # SMTP / network problems
+        PasswordResetOTP.objects.filter(user=user).delete()  # so the user can retry immediately
+        return _detail("We couldn't send the email right now. Please try again in a moment.", 502)
+ 
+    return JsonResponse({"detail": "A verification code has been sent to your email."})
+ 
+ 
 @require_POST
-def verify_code(request):
+def verify_otp(request):
     d = _body(request)
     email, code = _s(d, "email").lower(), _s(d, "code")
-    invalid = "Invalid or expired code."
-
+ 
     user = _find_user_by_email(email)
-    rc = PasswordResetCode.objects.filter(user=user).first() if user else None
-    if not rc or rc.expires_at < timezone.now() or rc.attempts >= MAX_ATTEMPTS:
-        return _errors({"code": invalid})
-
-    if not constant_time_compare(rc.code_hash, _hash(code)):
+    rc = PasswordResetOTP.objects.filter(user=user).first() if user else None
+ 
+    if not rc or not rc.otp_hash:
+        return _errors({"code": "No active code. Please request a new one."})
+    if rc.expires_at < timezone.now():
+        return _errors({"code": "This code has expired. Please request a new one."})
+    if rc.attempts >= MAX_ATTEMPTS:
+        return _errors({"code": "Too many wrong attempts. Please request a new code."})
+ 
+    if not constant_time_compare(rc.otp_hash, _hash(code)):
         rc.attempts += 1
         rc.save(update_fields=["attempts"])
-        return _errors({"code": invalid})
-
+        left = MAX_ATTEMPTS - rc.attempts
+        return _errors({"code": f"Incorrect code. {left} attempt(s) left."})
+ 
     token = secrets.token_urlsafe(32)
-    rc.token_hash = _hash(token)
-    rc.code_hash = ""          # code can't be reused
+    rc.reset_token_hash = _hash(token)
+    rc.otp_hash = ""          # code can't be reused
     rc.expires_at = timezone.now() + CODE_TTL
-    rc.save(update_fields=["token_hash", "code_hash", "expires_at"])
+    rc.save(update_fields=["reset_token_hash", "otp_hash", "expires_at"])
     return JsonResponse({"reset_token": token})
-
-
+ 
+ 
 @require_POST
-def set_password(request):
+def set_new_password(request):
     d = _body(request)
     email, token, new_password = _s(d, "email").lower(), _s(d, "reset_token"), d.get("new_password") or ""
-
+ 
     user = _find_user_by_email(email)
-    rc = PasswordResetCode.objects.filter(user=user).first() if user else None
-    if (not rc or not rc.token_hash or rc.expires_at < timezone.now()
-            or not constant_time_compare(rc.token_hash, _hash(token))):
+    rc = PasswordResetOTP.objects.filter(user=user).first() if user else None
+    if (not rc or not rc.reset_token_hash or rc.expires_at < timezone.now()
+            or not constant_time_compare(rc.reset_token_hash, _hash(token))):
         return _detail("Your reset session has expired. Please start again.")
-
+ 
     try:
         validate_password(new_password, user=user)
     except ValidationError as e:
         return _errors({"new_password": " ".join(e.messages)})
-
+ 
     user.set_password(new_password)
     user.save(update_fields=["password"])
     rc.delete()
     return JsonResponse({"detail": "Password updated."})
-
-
+ 
+ 
 @require_GET
 def me(request):
     if not request.user.is_authenticated:
-        return _detail("Not authenticated.", 401)
-    u = request.user
-    profile = Profile.objects.filter(user=u).first()  # superusers may not have one
-    return JsonResponse({
-        "name": u.get_full_name() or u.get_username(),
-        "username": u.get_username(),
-        "email": u.email,
-        "mobile": profile.mobile if profile else "",
-        "date_joined": u.date_joined.isoformat(),
-        "last_login": u.last_login.isoformat() if u.last_login else None,
-        "role": "Administrator" if u.is_superuser else ("Staff" if u.is_staff else "User"),
-    })
+        return JsonResponse(
+            {"authenticated": False},
+            status=401
+        )
 
+    user = request.user
+
+    return JsonResponse({
+        "authenticated": True,
+        "id": user.id,
+        "username": user.username,
+        "firstname": user.firstname,
+        "lastname": user.lastname,
+        "email": user.email,
+        "mobile_no": user.mobile_no,
+        "role": user.role,
+        "date_joined":user.date_joined,
+        "is_superuser": user.is_superuser,
+        "last_login" : user.login_time,
+    })
 
 @require_POST
 def logout_view(request):

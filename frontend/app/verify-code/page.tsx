@@ -34,7 +34,7 @@ export default function VerifyCodePage() {
   }
 
   return (
-    <AuthShell title="Verify Code" backHref="/login">
+    <AuthShell title="Verify Code" backHref="/forgot-password">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <TextField label="Code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required error={errors.code} />
         <FormMessage text={message} />

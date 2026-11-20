@@ -41,7 +41,7 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <AuthShell title="Set Password" backHref="/login">
+    <AuthShell title="Set Password" backHref="/verify-code">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <PasswordField label="New Password" name="new_password" autoComplete="new-password" required minLength={8} error={errors.new_password} />
         <PasswordField label="Confirm New Password" name="confirm_new_password" autoComplete="new-password" required error={errors.confirm_new_password} />
