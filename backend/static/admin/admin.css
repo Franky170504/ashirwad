@@ -1,0 +1,479 @@
+
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Dancing+Script:wght@500;600&display=swap");
+
+
+/* =====================================================
+   1. BRAND COLOURS & FONTS
+===================================================== */
+
+:root,
+html[data-theme] {
+    --brand-light: #e6ff9f;
+    --brand-dark: #0b472b;
+    --brand-button: #0e5a32;
+    --brand-button-hover: #0a4727;
+  
+
+    --font-family-primary: "Cormorant Garamond", Georgia, serif;
+    --font-family-script: "Dancing Script", cursive;
+
+    --primary: var(--brand-dark);
+    --secondary: var(--brand-button);
+    --accent: var(--brand-light);
+    --primary-fg: #fff;
+
+    --body-fg: #1f2937;
+    --body-bg: #fff;
+    --body-quiet-color: #525252;
+    --body-loud-color: #111;
+
+    --header-color: var(--brand-dark);
+    --header-branding-color: var(--brand-dark);
+    --header-bg: var(--brand-light);
+    --header-link-color: var(--brand-dark);
+
+    --breadcrumbs-fg: var(--brand-light);
+    --breadcrumbs-link-fg: #fff;
+    --breadcrumbs-bg: var(--brand-button);
+
+    --link-fg: var(--brand-button);
+    --link-hover-color: var(--brand-dark);
+    --link-selected-fg: var(--brand-dark);
+
+    --hairline-color: #e5e5e5;
+    --border-color: #d4d4d4;
+
+    --darkened-bg: #0B472B;
+    --selected-bg: #f1ffc8;
+    --selected-row: #f1ffc8;
+
+    --button-fg: #fff;
+    --button-bg: var(--brand-button);
+    --button-hover-bg: var(--brand-button-hover);
+
+    --default-button-bg: var(--brand-button);
+    --default-button-hover-bg: var(--brand-button-hover);
+
+    --close-button-bg: #6b7280;
+    --close-button-hover-bg: #4b5563;
+
+    --delete-button-bg: #b91c1c;
+    --delete-button-hover-bg: #991b1b;
+
+    --object-tools-fg: #fff;
+    --object-tools-bg: var(--brand-button);
+    --object-tools-hover-bg: var(--brand-button-hover);
+
+    --message-success-bg: #dff3e4;
+    --message-warning-bg: #fff4cc;
+    --message-error-bg: #fde8e8;
+}
+
+
+/* =====================================================
+   2. HIDE THEME TOGGLE AND SIDE NAVIGATION
+===================================================== */
+
+.theme-toggle,
+#nav-sidebar,
+#toggle-nav-sidebar {
+    display: none !important;
+}
+
+
+/* =====================================================
+   3. GENERAL PAGE LAYOUT
+===================================================== */
+
+body {
+    background: var(--brand-dark);
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+#container {
+    background: transparent;
+}
+
+
+/* =====================================================
+   4. ADMIN HEADER
+   Match Next.js dashboard header
+===================================================== */
+
+body:not(.login) #header {
+    height: 154px !important;
+    min-height: 154px !important;
+
+    box-sizing: border-box !important;
+
+    padding: 0 26px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+
+    background: var(--brand-light) !important;
+}
+
+
+/* Branding container */
+
+body:not(.login) #header #branding {
+    display: flex !important;
+    align-items: center !important;
+
+    position: relative !important;
+
+    width: 250px !important;
+    min-width: 250px !important;
+    height: 100% !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    flex: 0 0 245px !important;
+}
+
+
+/* Logo displayed using CSS */
+
+body:not(.login) #header #branding::before {
+    content: "" !important;
+
+    display: block !important;
+
+    position: absolute !important;
+
+    top: 50% !important;
+    left: 0 !important;
+
+    transform: translateY(-50%) !important;
+
+    width: 200px !important;
+    height: 200px !important;
+
+    background-image: url("/static/admin/logo.png") !important;
+    background-repeat: no-repeat !important;
+    background-position: left center !important;
+    background-size: contain !important;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    z-index: 10 !important;
+}
+
+
+/* Original branding content */
+
+body:not(.login) #header #site-name {
+    display: block !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+
+/* Hide inline image because CSS displays the logo */
+
+/* body:not(.login) #header #branding #site-name img {
+    display: none !important;
+} */
+
+
+/* Welcome message and logout */
+
+body:not(.login) #header #user-tools {
+    display: block !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    font-family: var(--font-family-script);
+    font-size: 1rem;
+    font-weight: 600;
+
+    color: var(--brand-dark);
+
+    text-align: right;
+}
+
+
+/* =====================================================
+   5. BREADCRUMBS
+===================================================== */
+
+div.breadcrumbs {
+    padding: 10px 24px;
+}
+
+
+/* =====================================================
+   6. MAIN CONTENT CARD
+===================================================== */
+
+#content {
+    background: #fff;
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 24px 32px;
+    border-radius: 2px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+
+#content-related {
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+
+.main > .content {
+    min-width: 0;
+    padding: 0 16px;
+}
+
+
+/* =====================================================
+   7. HEADINGS AND BUTTONS
+===================================================== */
+
+h1,
+h2,
+h3,
+.module caption,
+.button,
+input[type=submit],
+input[type=button],
+.object-tools a,
+#user-tools {
+    font-family: var(--font-family-script);
+    font-weight: 600;
+}
+
+h1 {
+    font-size: 2.2rem;
+    color: var(--body-loud-color);
+}
+
+.module {
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+
+/* =====================================================
+   8. FORM INPUTS
+===================================================== */
+
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=number],
+input[type=url],
+input[type=tel],
+input[type=date],
+input[type=time],
+input[type=search],
+select,
+textarea {
+    background: #e5e5e5;
+
+    border: 1px solid transparent;
+    border-radius: 2px;
+
+    color: #111;
+
+    font-family: var(--font-family-primary);
+    font-weight: 600;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid var(--brand-button);
+    background: #efefef;
+}
+
+.button,
+input[type=submit],
+input[type=button] {
+    border-radius: 2px;
+}
+
+
+/* =====================================================
+   9. LOGIN PAGE
+===================================================== */
+
+body.login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0 0 0 35%;
+    box-sizing: border-box;
+}
+
+
+/* Left logo panel */
+
+body.login::before {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 35%;
+    background:
+        var(--brand-light)
+        url("logo.png")
+        center / 70%
+        no-repeat;
+}
+
+
+/* Login card */
+
+.login #container {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: 27rem;
+    max-width: calc(100% - 32px);
+    margin: 0;
+    background: #fff;
+    border: 0;
+    border-radius: 2px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+
+/* Login header */
+
+.login #header {
+    background: #fff;
+
+    justify-content: center;
+
+    padding: 28px 16px 0;
+}
+
+.login #header #site-name {
+    display: none !important;
+}
+
+.login #header::after {
+    content: "Admin Login";
+
+    font-family: var(--font-family-script);
+    font-size: 2.4rem;
+    font-weight: 500;
+
+    color: #111;
+}
+
+
+/* Login content */
+
+.login #content {
+    margin: 0;
+
+    max-width: none;
+
+    padding: 20px 32px 32px;
+
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.login .form-row label {
+    font-style: italic;
+}
+
+.login .form-row input {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    padding: 8px 12px;
+}
+
+.login .submit-row {
+    padding: 1em 0 0;
+    text-align: center;
+}
+
+.login .submit-row input {
+    width: 100%;
+
+    padding: 10px;
+
+    font-size: 1.3rem;
+}
+
+
+/* =====================================================
+   10. RESPONSIVE DESIGN
+===================================================== */
+
+@media (max-width: 768px) {
+
+    /* Admin header */
+
+    body:not(.login) #header {
+        height: 110px !important;
+        min-height: 110px !important;
+
+        padding: 0 16px !important;
+    }
+
+    /* Mobile branding */
+
+    body:not(.login) #header #branding {
+        width: 180px !important;
+        min-width: 180px !important;
+        flex-basis: 180px !important;
+    }
+
+    body:not(.login) #header #branding::before {
+        width: 180px !important;
+        height: 55px !important;
+    }
+
+    /* Mobile welcome text */
+
+    body:not(.login) #header #user-tools {
+        font-size: 0.85rem;
+    }
+
+    /* Login page */
+
+    body.login {
+        padding-left: 0;
+    }
+
+    body.login::before {
+        display: none;
+    }
+
+    .login #container {
+        width: 27rem;
+    }
+
+    .login #header #site-name {
+        display: block !important;
+    }
+
+    .login #header::after {
+        display: none;
+    }
+
+    /* Content */
+
+    #content {
+        margin: 12px;
+        padding: 16px;
+    }
+}

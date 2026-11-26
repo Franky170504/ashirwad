@@ -87,53 +87,53 @@ def csrf(request):
     """The frontend calls this once so Django sets the csrftoken cookie."""
     return JsonResponse({"ok": True})
 
-@require_POST
-def register(request):
-    d = _body(request)
-    first, last = _s(d, "firstname"), _s(d, "lastname")
-    email, mobile_no = _s(d, "email").lower(), _s(d, "mobile_no")
-    password, confirm = d.get("password") or "", d.get("confirm_password") or ""
+# @require_POST
+# def register(request):
+#     d = _body(request)
+#     first, last = _s(d, "firstname"), _s(d, "lastname")
+#     email, mobile_no = _s(d, "email").lower(), _s(d, "mobile_no")
+#     password, confirm = d.get("password") or "", d.get("confirm_password") or ""
 
-    errs = {}
-    if not first:
-        errs["firstname"] = "First name is required."
-    if not last:
-        errs["lastname"] = "Last name is required."
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        errs["email"] = "Enter a valid email address."
-    elif User.objects.filter(email__iexact=email).exists():
-        errs["email"] = "An account with this email already exists."
-    if not mobile_no:
-        return JsonResponse(
-            {"error": "Mobile number is required"},
-            status=400
-        )
-    if not MOBILE_RE.match(mobile_no.replace(" ", "").replace("-", "")):
-        errs["mobile_no"] = "Enter a valid mobile number."
-    if password != confirm:
-        errs["confirm_password"] = "Passwords do not match."
-    if "password" not in errs and password:
-        try:
-            validate_password(password, user=User(username=first + last[:1], email=email, firstname=first, lastname=last))
-        except ValidationError as e:
-            errs["password"] = " ".join(e.messages)
-    elif not password:
-        errs["password"] = "Password is required."
-    if errs:
-        return _errors(errs)
+#     errs = {}
+#     if not first:
+#         errs["firstname"] = "First name is required."
+#     if not last:
+#         errs["lastname"] = "Last name is required."
+#     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+#         errs["email"] = "Enter a valid email address."
+#     elif User.objects.filter(email__iexact=email).exists():
+#         errs["email"] = "An account with this email already exists."
+#     if not mobile_no:
+#         return JsonResponse(
+#             {"error": "Mobile number is required"},
+#             status=400
+#         )
+#     if not MOBILE_RE.match(mobile_no.replace(" ", "").replace("-", "")):
+#         errs["mobile_no"] = "Enter a valid mobile number."
+#     if password != confirm:
+#         errs["confirm_password"] = "Passwords do not match."
+#     if "password" not in errs and password:
+#         try:
+#             validate_password(password, user=User(username=first + last[:1], email=email, firstname=first, lastname=last))
+#         except ValidationError as e:
+#             errs["password"] = " ".join(e.messages)
+#     elif not password:
+#         errs["password"] = "Password is required."
+#     if errs:
+#         return _errors(errs)
 
-    # Retry in the rare case two people register the same name at the same moment
-    for _ in range(5):
-        username = _generate_username(first, last)
-        try:
-            with transaction.atomic():
-                user = User.objects.create_user(firstname=first, lastname=last, email=email,mobile_no=mobile_no,  password=password)
-            break
-        except IntegrityError:
-            continue
-    else:
-        return _detail("Could not create the account. Please try again.", 500)
-    return JsonResponse({"detail": "Account created.", "username": user.get_username()}, status=201)
+#     # Retry in the rare case two people register the same name at the same moment
+#     for _ in range(5):
+#         username = _generate_username(first, last)
+#         try:
+#             with transaction.atomic():
+#                 user = User.objects.create_user(firstname=first, lastname=last, email=email,mobile_no=mobile_no,  password=password)
+#             break
+#         except IntegrityError:
+#             continue
+#     else:
+#         return _detail("Could not create the account. Please try again.", 500)
+#     return JsonResponse({"detail": "Account created.", "username": user.get_username()}, status=201)
 
 @require_POST
 def login(request):

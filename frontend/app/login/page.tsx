@@ -47,11 +47,11 @@ function LoginForm() {
           <label className="flex cursor-pointer items-center gap-2 italic">
             <input type="checkbox" name="remember_me" className="h-4 w-4 accent-brand-button" /> Remember Me
           </label>
-          <Link href="/forgot-password" className="italic text-brand-button hover:underline">Forgot Password</Link>
+          <Link href="/forgot-password" className="italic text-brand-button hover:underline">Reset Password</Link>
         </div>
 
-        <FormMessage text={message} />
-        <Link href="/register" className="block pt-2 text-center font-script text-xl text-brand-button hover:underline">Create New User</Link>
+        {/* <FormMessage text={message} />
+        <Link href="/register" className="block pt-2 text-center font-script text-xl text-brand-button hover:underline">Create New User</Link> */}
         <SubmitButton loading={loading}>Login</SubmitButton>
       </form>
     </AuthShell>

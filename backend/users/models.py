@@ -5,8 +5,16 @@ from django.utils import timezone
 
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, firstname, lastname, email, mobile_no, password=None, **extra_fields):
+    def generate_username(self, firstname, lastname):
+        """Manish Suryavanshi -> ManishS. If taken: ManishS1, ManishS2, ..."""
+        base_username = firstname.strip() + lastname.strip()[:1]
+        username, counter = base_username, 1
+        while self.model.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+        return username
 
+    def create_user(self, firstname, lastname, email, mobile_no, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
 
@@ -18,18 +26,7 @@ class CustomUserManager(BaseUserManager):
 
         email = self.normalize_email(email)
 
-        # Automatically generate username
-        base_username = (
-            firstname.strip() +
-            lastname.strip()[0]
-        )
-
-        username = base_username
-        counter = 1
-
-        while self.model.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
+        username = self.generate_username(firstname, lastname)
 
         user = self.model(
             firstname=firstname,
@@ -45,8 +42,7 @@ class CustomUserManager(BaseUserManager):
 
         return user
 
-    def create_superuser(self, firstname, lastname, email,
-                         mobile_no, password=None, **extra_fields):
+    def create_superuser(self, firstname, lastname, email, mobile_no, password=None, **extra_fields):
 
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_staff', True)
@@ -69,11 +65,13 @@ class CustomUserManager(BaseUserManager):
         )
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-
     ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('manager', 'Manager'),
-        ('employee', 'Employee'),
+        ('accountant', 'Accountant'),
+        ('designer', 'Designer'),
+        ('programmer', 'Programmer'),
+        ('operator', 'Operator'),
     ]
 
     firstname = models.CharField(max_length=100)
@@ -87,7 +85,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
-        default='employee'
     )
 
     email = models.EmailField(unique=True)
@@ -110,6 +107,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.username
 
+    def get_short_name(self):
+        return self.username
+
+    def get_full_name(self):
+        return f"{self.firstname} {self.lastname}".strip()
+
 class PasswordResetOTP(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -121,9 +124,7 @@ class PasswordResetOTP(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     attempts = models.PositiveSmallIntegerField(default=0)
-
     verified_at = models.DateTimeField(null=True, blank=True)
-
     reset_token_hash = models.CharField(
         max_length=128,
         blank=True,
