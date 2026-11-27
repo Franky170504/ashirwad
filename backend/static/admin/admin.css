@@ -235,7 +235,9 @@ div.breadcrumbs {
     padding: 0 16px;
 }
 
-
+#changelist-filter {
+    background: #1f2937;
+}
 /* =====================================================
    7. HEADINGS AND BUTTONS
 ===================================================== */

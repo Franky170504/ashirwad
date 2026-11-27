@@ -3,10 +3,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin,BaseUserManager
 from django.utils import timezone
 
-
 class CustomUserManager(BaseUserManager):
     def generate_username(self, firstname, lastname):
-        """Manish Suryavanshi -> ManishS. If taken: ManishS1, ManishS2, ..."""
         base_username = firstname.strip() + lastname.strip()[:1]
         username, counter = base_username, 1
         while self.model.objects.filter(username=username).exists():
@@ -21,11 +19,7 @@ class CustomUserManager(BaseUserManager):
         if not firstname or not lastname:
             raise ValueError("First name and last name are required")
 
-        if not password:
-            raise ValueError("Password is required")
-
         email = self.normalize_email(email)
-
         username = self.generate_username(firstname, lastname)
 
         user = self.model(
@@ -37,11 +31,10 @@ class CustomUserManager(BaseUserManager):
             **extra_fields
         )
 
-        user.set_password(password)
+        user.set_password(password or username)   # default password = username
         user.save(using=self._db)
-
         return user
-
+ 
     def create_superuser(self, firstname, lastname, email, mobile_no, password=None, **extra_fields):
 
         extra_fields.setdefault('is_superuser', True)
@@ -76,11 +69,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     firstname = models.CharField(max_length=100)
     lastname = models.CharField(max_length=100)
-    username = models.CharField(
-        max_length=150,
-        unique=True,
-        editable=False
-    )
+    username = models.CharField(max_length=150,unique=True,editable=False)
 
     role = models.CharField(
         max_length=20,
@@ -130,3 +119,14 @@ class PasswordResetOTP(models.Model):
         blank=True,
         null=True
     )
+
+class LoginOTP(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="login_otp",
+    )
+    otp_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)

@@ -21,12 +21,22 @@ function LoginForm() {
     const fd = new FormData(e.currentTarget);
     setErrors({}); setMessage(""); setLoading(true);
     try {
-      const res = await post<{ username: string }>("/login/", {
+      const res = await post<{ otp_required?: boolean; email?: string; username?: string }>("/login/", {
         identifier: fd.get("identifier"),
         password: fd.get("password"),
         remember_me: fd.get("remember_me") === "on",
       });
-      router.push(`/${encodeURIComponent(res.username)}/dashboard`);
+
+      // Password was correct: a code has been emailed, go verify it
+      if (res.otp_required) {
+        sessionStorage.setItem("login_email_hint", res.email ?? "");
+        sessionStorage.setItem("login_otp_sent_at", String(Date.now()));
+        router.push("/verify-login"); // use your actual route for the verify page
+        return;
+      }
+
+      // Fallback if the server ever logs in without 2FA
+      if (res.username) router.push(`/${encodeURIComponent(res.username)}/dashboard`);
     } catch (err) {
       if (err instanceof ApiError) { setErrors(err.fieldErrors); setMessage(err.message); }
       else setMessage("Could not reach the server.");
@@ -36,9 +46,6 @@ function LoginForm() {
   return (
     <AuthShell title="Login">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {params.get("registered") && (
-          <FormMessage kind="success" text={`Account created. Your username is ${params.get("u") ?? ""}. Please log in.`} />
-        )}
         {params.get("reset") && <FormMessage kind="success" text="Password updated. Please log in." />}
         <TextField label="Email / UserID" name="identifier" autoComplete="username" required error={errors.identifier} />
         <PasswordField label="Password" name="password" autoComplete="current-password" required error={errors.password} />
@@ -50,8 +57,7 @@ function LoginForm() {
           <Link href="/forgot-password" className="italic text-brand-button hover:underline">Reset Password</Link>
         </div>
 
-        {/* <FormMessage text={message} />
-        <Link href="/register" className="block pt-2 text-center font-script text-xl text-brand-button hover:underline">Create New User</Link> */}
+        <FormMessage text={message} />
         <SubmitButton loading={loading}>Login</SubmitButton>
       </form>
     </AuthShell>
